@@ -181,7 +181,12 @@ sub{font-size:.68em;line-height:0}
 @media(max-width:1060px){.panel-layout,.sim{grid-template-columns:1fr}.panelinfo{padding:18px}}
 @media(max-width:650px){
   body{font-size:14.5px}
-  .hero h1{font-size:clamp(40px,12vw,64px)}
+  .masthead{padding:8px 0}.mastinner{gap:6px}.audio-status{display:none}
+  .hero{padding:12px 0 0}.eyebrow{font-size:10.5px}
+  .hero h1{font-size:clamp(34px,10.5vw,46px);margin:5px 0 6px}
+  .subtitle{font-size:13px;line-height:1.45}
+  .chips{display:none}.rule{display:none}
+  .chapterbar{margin:10px 0}
   .wordmark{font-size:22px}
   .controls{width:100%}
   .tool{padding:7px 9px;font-size:11.5px}
@@ -520,7 +525,7 @@ function sentences(s){return s.split(/(?<=[.!?…])\s+(?=[A-Z0-9(‘'])/).map(x=
 function cancelNarration(){speakToken++;if('speechSynthesis'in window)try{speechSynthesis.cancel()}catch(e){}playingVoice=false;volumeUpdate()}
 function narrate(text){if(!narrationOn||!('speechSynthesis'in window)||!('SpeechSynthesisUtterance'in window))return;cancelNarration();const token=speakToken;const chunks=sentences(speakable(text));if(!chunks.length)return;setTimeout(()=>speakFrom(chunks,0,token),90)}
 function speakFrom(chunks,start,token){if(token!==speakToken)return;const chosen=voice||pickVoice();let started=false;
- for(let i=start;i<chunks.length;i++){const u=new SpeechSynthesisUtterance(chunks[i]);if(chosen){u.voice=chosen;u.lang=chosen.lang}else u.lang='en-US';u.rate=.96;u.pitch=1;u.volume=Math.max(.15,$('volume').value/100);
+ for(let i=start;i<chunks.length;i++){const u=new SpeechSynthesisUtterance(chunks[i]);if(chosen){u.voice=chosen;u.lang=chosen.lang}else u.lang='en-US';u.rate=.95;u.pitch=1.02;u.volume=Math.max(.15,$('volume').value/100);
   u.onstart=()=>{if(token!==speakToken)return;started=true;playingVoice=true;volumeUpdate()};
   if(i===chunks.length-1)u.onend=()=>{if(token!==speakToken)return;playingVoice=false;volumeUpdate()};
   u.onerror=e=>{if(token!==speakToken||e.error==='interrupted'||e.error==='canceled')return;
@@ -623,14 +628,15 @@ function hints5(){return[
 function showHint5(){hint5=Math.min(3,hint5+1);$('hint5Box').classList.remove('hidden');$('hint5Box').innerHTML='<b>Hint '+hint5+' of 3</b>'+hints5()[hint5-1];if(hint5===3){$('hint5Btn').textContent='All hints shown';$('hint5Btn').disabled=true}else $('hint5Btn').textContent='Hint '+(hint5+1)+' of 3';sfx('click')}
 function showSubst5(){const rows=[26.5,26.6].map(a=>{const p=model(VI,a);return '<u>θ = '+a+'°</u><br>v<sub>ix</sub> = 16.0 cos '+a+'° = '+f(p.vix,3)+' m/s · v<sub>iy</sub> = 16.0 sin '+a+'° = '+f(p.viy,3)+' m/s<br>t = ['+f(p.viy,3)+' + √('+f(p.viy*p.viy,2)+' + 39.24)] ÷ 9.81 = '+f(p.t,3)+' s<br>Δx = '+f(p.vix,3)+' × '+f(p.t,3)+' = '+f(p.dx,2)+' m '+(p.dx>=SAFE0?'≥':'<')+' 24.3 m<br>|v<sub>fy</sub>| = √('+f(p.viy*p.viy,2)+' + 39.24) = '+f(p.down,2)+' m/s ≤ 11.0 m/s'}).join('<br><br>');$('subst5Box').classList.remove('hidden');$('subst5Box').innerHTML='<b>SUBSTITUTION · CHECKING TWO ANGLES</b>'+rows;sfx('click')}
 function checkMin(){const raw=$('ansMin').value.trim(),val=raw===''?NaN:Number(raw);ch5Attempts++;const fb=$('minFeedback');fb.classList.remove('hidden');
- const ok=Number.isFinite(val)&&Math.abs(val-THETA_MIN)<=0.25;$('ansMin').classList.toggle('wrong',!ok);$('ansMin').classList.toggle('right',ok);
- if(ok){ch5Done=true;ch5Answer=val;fb.className='feedback good';const p=model(VI,val);fb.innerHTML='<b>Correct. Chapter 5 complete.</b>The smallest safe angle is about '+f(THETA_MIN,1)+'°. Below it, R2 lands closer than 24.3 m. At '+f(val,1)+'°, Δx = '+f(p.dx,2)+' m and |v<sub>fy</sub>| = '+f(p.down,2)+' m/s, so both checks pass.';$('ch5Badge').classList.remove('hidden');complete(5);sfx('success');narrate('Correct. The smallest safe angle is about '+f(THETA_MIN,1)+' degrees. Chapter 5 complete. Answer the last question, then print your mission report.');return}
+ /* one-sided: an angle below the true minimum lands short of 24.3 m and is never accepted */
+ const pm=Number.isFinite(val)?model(VI,val):null,ok=!!pm&&pm.inTarget&&pm.sensorOK&&val<=THETA_MIN+0.25;$('ansMin').classList.toggle('wrong',!ok);$('ansMin').classList.toggle('right',ok);
+ if(ok){ch5Done=true;ch5Answer=val;fb.className='feedback good';const p=model(VI,val);fb.innerHTML='<b>Correct. Chapter 5 complete.</b>The theoretical minimum is '+f(THETA_MIN,2)+'°, so 26.6° is the smallest safe setting on the slider. Below the minimum, R2 lands closer than 24.3 m. At '+f(val,1)+'°, Δx = '+f(p.dx,2)+' m and |v<sub>fy</sub>| = '+f(p.down,2)+' m/s, so both checks pass.';$('ch5Badge').classList.remove('hidden');complete(5);sfx('success');narrate('Correct. The theoretical minimum is '+f(THETA_MIN,2)+' degrees, so 26.6 degrees is the smallest safe setting on the slider. Chapter 5 complete. Answer the last question, then print your mission report.');return}
  let msg;if(!Number.isFinite(val))msg='Enter an angle in degrees.';else{const p=model(VI,val);
   if(val>34.5)msg='At '+f(val,1)+'°, |v<sub>fy</sub>| = '+f(p.down,1)+' m/s, which is over 11.0 m/s, so the sensor breaks. Look at lower angles.';
   else if(Math.abs(val-25.85)<=0.25)msg='At '+f(val,1)+'° R2 just reaches the pad edge (24.0 m), but the target needs 0.30 m of space: Δx ≥ 24.3 m.';
   else if(Math.abs(val-31.65)<=0.3)msg='That is the <strong>largest</strong> safe angle. Now find the smallest.';
-  else if(val<THETA_MIN)msg='At '+f(val,1)+'°, R2 lands at Δx = '+f(p.dx,2)+' m. That is short of 24.3 m. Try a slightly larger angle.';
-  else msg='At '+f(val,1)+'° the landing is safe, but a smaller angle still works. Keep lowering the slider.'}
+  else if(val<THETA_MIN)msg='At '+raw+'°, R2 lands at Δx = '+f(p.dx,p.dx>24.29?4:p.dx>24.25?3:2)+' m. That is short of 24.3 m, so the landing is not safe. Try a slightly larger angle.';
+  else msg='At '+raw+'° the landing is safe, but a smaller angle still works. Keep lowering the slider.'}
  fb.className='feedback bad';fb.innerHTML='<b>Not yet.</b>'+msg+(ch5Attempts>=2?' Need more support? Try “Show substitution.”':'');sfx('alert')}
 
 /* ---------- mission report ---------- */
