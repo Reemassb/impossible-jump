@@ -224,9 +224,9 @@ sub{font-size:.68em;line-height:0}
   .outcome.safe .section-title{color:var(--safe)!important}
   .outcome.short .section-title,.outcome.long .section-title{color:var(--impact)!important}
   .section-title{font-size:24px;margin:4px 0}
-  .ending-top{grid-template-columns:.9fr 1.1fr;gap:12px}
+  .ending-top{grid-template-columns:270px 1fr;gap:14px}
   .metrics{margin-top:8px}.dbar-wrap{margin:10px 0 4px}
-  .ending-img{border:1px solid #333}
+  .ending-img{border:1px solid #333;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover}
   .callout{background:#fff!important;border:1px solid #999!important}
   .metric{background:#f2f5f8!important;border-top-color:var(--teal)!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .metric strong{font-size:18px}
@@ -242,10 +242,11 @@ sub{font-size:.68em;line-height:0}
   #reportHead .rh-brand{font-size:10px;color:#147783!important;letter-spacing:1.5px;font-weight:900}
   #reportHead h1{font-family:var(--display);font-weight:900;font-size:24px;margin:3px 0 4px;letter-spacing:.5px;text-transform:uppercase}
   #reportHead .rh-meta{display:flex;gap:24px;font-size:12.5px;margin-top:6px}#reportHead .rh-meta span{flex:1;border-bottom:1px solid #555;padding-bottom:3px}#reportHead .rh-meta b{font-size:14px}
-  .report-block{border:1.5px solid #333;padding:10px 12px;margin:8px 0;break-inside:avoid}
+  .report-block{border:1.5px solid #333;padding:8px 12px;margin:6px 0;break-inside:avoid}
   .report-block h2{font-size:13px;letter-spacing:1.2px;text-transform:uppercase;margin:0 0 6px;color:#0f4d57}
-  .printlines{border:1px solid #999;min-height:60px;white-space:pre-wrap;overflow-wrap:anywhere;padding:8px;font-size:12px;line-height:1.5}
+  .printlines{border:1px solid #999;min-height:46px;white-space:pre-wrap;overflow-wrap:anywhere;padding:8px;font-size:12px;line-height:1.5}
   .q{font-weight:700;margin:6px 0 4px}
+  .helpline div{font-size:11px;margin:5px 0 0;line-height:1.35}
   .notdone{color:var(--impact)!important;font-weight:900;font-size:14px}
   .ok-line{color:var(--safe)!important;font-weight:900}
   .reportgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:6px 0}
@@ -345,7 +346,7 @@ sub{font-size:.68em;line-height:0}
     <div id="calcFeedback" class="feedback hidden" role="status" aria-live="polite"></div>
     <div class="helpbar">
       <button id="hintBtn" type="button">Hint 1 of 3</button>
-      <button id="substBtn" type="button">Show substitution</button>
+      <button id="substBtn" type="button" disabled title="Unlocks after two tries">Show substitution · after 2 tries</button>
     </div>
     <div id="hintBox" class="feedback hidden"></div>
     <div id="substBox" class="subst hidden"></div>
@@ -390,6 +391,7 @@ sub{font-size:.68em;line-height:0}
   <h2>Your written answers</h2>
   <div class="q">Chapter 4 · Explain why R2 landed where it did.</div>
   <div class="printlines" id="printExplain"></div>
+  <div id="printHelp" class="helpline"></div>
 </div>
 
 <!-- CHAPTER 5 -->
@@ -435,7 +437,7 @@ sub{font-size:.68em;line-height:0}
   <div id="minFeedback" class="feedback hidden" role="status" aria-live="polite"></div>
   <div class="helpbar">
     <button id="hint5Btn" type="button">Hint 1 of 3</button>
-    <button id="subst5Btn" type="button">Show substitution</button>
+    <button id="subst5Btn" type="button" disabled title="Unlocks after two tries">Show substitution · after 2 tries</button>
   </div>
   <div id="hint5Box" class="feedback hidden"></div>
   <div id="subst5Box" class="subst hidden"></div>
@@ -540,7 +542,10 @@ if('speechSynthesis'in window&&speechSynthesis.addEventListener)speechSynthesis.
 
 /* ---------- chapter 3 ---------- */
 const PRED={short:'falls short',safe:'lands on the pad',long:'overshoots'};
-function newAngle(deg){angle=deg;prediction='';attempts=0;hintLevel=0;canLaunch=false;
+let substUsed=false,helpRec={},ch5Subst=false,ch5Rec=null;
+function lockSubst(id,locked){const b=$(id);b.disabled=locked;b.textContent=locked?'Show substitution · after 2 tries':'Show substitution';b.title=locked?'Unlocks after two tries':''}
+function helpText(r){return 'correct on attempt '+r.attempts+' · hints used: '+r.hints+' of 3 · substitution: '+(r.subst?'used':'not used')}
+function newAngle(deg){angle=deg;prediction='';attempts=0;hintLevel=0;canLaunch=false;substUsed=false;lockSubst('substBtn',true);
  document.querySelectorAll('.option').forEach(b=>{const on=Number(b.dataset.angle)===angle;b.classList.toggle('selected',on);b.setAttribute('aria-pressed',String(on))});
  document.querySelectorAll('[data-predict]').forEach(b=>b.setAttribute('aria-pressed','false'));
  $('predictPrompt').textContent='At '+angle+'°, where will R2 come down to the pad’s height?';
@@ -554,12 +559,12 @@ function hintsFor(deg){const p=model(VI,deg);return[
  'Use the vertical equation Δy = v<sub>iy</sub> t + ½ a<sub>y</sub> t² with Δy = −2.0 m and a<sub>y</sub> = −9.81 m/s². Rearranged: 4.905 t² − v<sub>iy</sub> t − 2.0 = 0. Solve this quadratic and keep the <strong>positive</strong> root.',
  'The positive root is t = [v<sub>iy</sub> + √(v<sub>iy</sub>² + 39.24)] ÷ 9.81. The horizontal velocity never changes, so Δx = v<sub>ix</sub> × t. Then compare Δx with 24.0 m and 26.5 m.']}
 function showHint(){hintLevel=Math.min(3,hintLevel+1);const h=hintsFor(angle);$('hintBox').classList.remove('hidden');$('hintBox').innerHTML='<b>Hint '+hintLevel+' of 3</b>'+h[hintLevel-1];if(hintLevel===3){$('hintBtn').textContent='All hints shown';$('hintBtn').disabled=true}else $('hintBtn').textContent='Hint '+(hintLevel+1)+' of 3';sfx('click')}
-function showSubst(){const p=model(VI,angle),q=p.viy*p.viy;$('substBox').classList.remove('hidden');$('substBox').innerHTML='<b>SUBSTITUTION · '+angle+'°</b>'+
- 'v<sub>ix</sub> = 16.0 × cos '+angle+'° = '+f(p.vix,3)+' m/s<br>'+
- 'v<sub>iy</sub> = 16.0 × sin '+angle+'° = '+f(p.viy,3)+' m/s<br>'+
- '−2.0 = '+f(p.viy,3)+' t − 4.905 t²<br>'+
- 't = ['+f(p.viy,3)+' + √('+f(q,2)+' + 39.24)] ÷ 9.81 = '+f(p.t,3)+' s<br>'+
- 'Δx = '+f(p.vix,3)+' × '+f(p.t,3)+' = '+f(p.dx,2)+' m';sfx('click')}
+function showSubst(){substUsed=true;$('substBox').classList.remove('hidden');$('substBox').innerHTML='<b>EQUATIONS TO USE · put in your own values</b>'+
+ '1 · v<sub>ix</sub> = v<sub>i</sub> cos θ<br>'+
+ '2 · v<sub>iy</sub> = v<sub>i</sub> sin θ<br>'+
+ '3 · Δy = v<sub>iy</sub> t + ½ a<sub>y</sub> t²   (rearrange to a quadratic in t)<br>'+
+ '4 · t = [−b ± √(b² − 4ac)] ÷ 2a   (keep the positive root)<br>'+
+ '5 · Δx = v<sub>ix</sub> t';sfx('click')}
 function near(a,b,tol){return Number.isFinite(a)&&Math.abs(a-b)<=tol}
 function diagnose(id,val,p){const r=angle*Math.PI/180,rad=angle;/* targeted feedback for common mistakes */
  if(!Number.isFinite(val))return 'Enter a number.';
@@ -581,8 +586,8 @@ function checkMath(){const p=model(VI,angle);const items=[['ansVx',p.vix,.25,'v<
  attempts++;const wrong=[];
  for(const[id,exp,abs,name]of items){const raw=$(id).value.trim(),val=raw===''?NaN:Number(raw);const ok=Number.isFinite(val)&&tolOK(val,exp,abs);$(id).classList.toggle('wrong',!ok);$(id).classList.toggle('right',ok);if(!ok)wrong.push('<li><strong>'+name+':</strong> '+(raw===''?'Enter a value.':diagnose(id,val,p))+'</li>')}
  const fb=$('calcFeedback');fb.classList.remove('hidden');
- if(wrong.length){fb.className='feedback bad';fb.innerHTML='<b>Not yet. The launch is still locked. Check '+(wrong.length===1?'this value':'these values')+':</b><ul>'+wrong.join('')+'</ul>'+(attempts>=2?'Need more support? Try “Show substitution.”':'');canLaunch=false;$('runJump').classList.add('hidden');sfx('alert');return}
- canLaunch=true;fb.className='feedback good';fb.innerHTML='<b>All four values check out.</b>R2 reaches the pad’s height after '+f(p.t,2)+' s, at Δx = '+f(p.dx,2)+' m. The ramp is armed.';$('runJump').classList.remove('hidden');complete(3);sfx('success');narrate('All four values check out. The ramp is armed. Launch R 2 when you are ready.')}
+ if(wrong.length){fb.className='feedback bad';fb.innerHTML='<b>Not yet. The launch is still locked. Check '+(wrong.length===1?'this value':'these values')+':</b><ul>'+wrong.join('')+'</ul>'+(attempts>=2?'Need more support? “Show substitution” is now available.':'');if(attempts>=2)lockSubst('substBtn',false);canLaunch=false;$('runJump').classList.add('hidden');sfx('alert');return}
+ helpRec[angle]={attempts,hints:hintLevel,subst:substUsed};canLaunch=true;fb.className='feedback good';fb.innerHTML='<b>All four values check out.</b>R2 reaches the pad’s height after '+f(p.t,2)+' s, at Δx = '+f(p.dx,2)+' m. The ramp is armed.';$('runJump').classList.remove('hidden');complete(3);sfx('success');narrate('All four values check out. The ramp is armed. Launch R 2 when you are ready.')}
 
 /* ---------- chapter 4 ---------- */
 function distanceBar(p){const lo=20,hi=30,pc=x=>((Math.min(hi,Math.max(lo,x))-lo)/(hi-lo)*100).toFixed(2)+'%';
@@ -626,31 +631,37 @@ function hints5(){return[
  'At low angles the sensor is fine (|v<sub>fy</sub>| is under 10 m/s). The limit that fails first is the <strong>landing point</strong>: Δx must stay at or above 24.3 m.',
  'Compare 26.5° and 26.6° on the slider. One lands just short of 24.3 m and one lands just inside it.']}
 function showHint5(){hint5=Math.min(3,hint5+1);$('hint5Box').classList.remove('hidden');$('hint5Box').innerHTML='<b>Hint '+hint5+' of 3</b>'+hints5()[hint5-1];if(hint5===3){$('hint5Btn').textContent='All hints shown';$('hint5Btn').disabled=true}else $('hint5Btn').textContent='Hint '+(hint5+1)+' of 3';sfx('click')}
-function showSubst5(){const rows=[26.5,26.6].map(a=>{const p=model(VI,a);return '<u>θ = '+a+'°</u><br>v<sub>ix</sub> = 16.0 cos '+a+'° = '+f(p.vix,3)+' m/s · v<sub>iy</sub> = 16.0 sin '+a+'° = '+f(p.viy,3)+' m/s<br>t = ['+f(p.viy,3)+' + √('+f(p.viy*p.viy,2)+' + 39.24)] ÷ 9.81 = '+f(p.t,3)+' s<br>Δx = '+f(p.vix,3)+' × '+f(p.t,3)+' = '+f(p.dx,2)+' m '+(p.dx>=SAFE0?'≥':'<')+' 24.3 m<br>|v<sub>fy</sub>| = √('+f(p.viy*p.viy,2)+' + 39.24) = '+f(p.down,2)+' m/s ≤ 11.0 m/s'}).join('<br><br>');$('subst5Box').classList.remove('hidden');$('subst5Box').innerHTML='<b>SUBSTITUTION · CHECKING TWO ANGLES</b>'+rows;sfx('click')}
+function showSubst5(){ch5Subst=true;$('subst5Box').classList.remove('hidden');$('subst5Box').innerHTML='<b>EQUATIONS TO USE · check any angle θ</b>'+
+ '1 · v<sub>ix</sub> = v<sub>i</sub> cos θ  and  v<sub>iy</sub> = v<sub>i</sub> sin θ<br>'+
+ '2 · Δy = v<sub>iy</sub> t + ½ a<sub>y</sub> t²   → solve for the positive t<br>'+
+ '3 · Δx = v<sub>ix</sub> t   → compare with the target zone<br>'+
+ '4 · v<sub>fy</sub>² = v<sub>iy</sub>² + 2a<sub>y</sub>Δy   → compare |v<sub>fy</sub>| with the sensor limit<br>'+
+ 'Test an angle that is too small and one that is safe, then close the gap.';sfx('click')}
 function checkMin(){const raw=$('ansMin').value.trim(),val=raw===''?NaN:Number(raw);ch5Attempts++;const fb=$('minFeedback');fb.classList.remove('hidden');
  /* one-sided: an angle below the true minimum lands short of 24.3 m and is never accepted */
  const pm=Number.isFinite(val)?model(VI,val):null,ok=!!pm&&pm.inTarget&&pm.sensorOK&&val<=THETA_MIN+0.25;$('ansMin').classList.toggle('wrong',!ok);$('ansMin').classList.toggle('right',ok);
- if(ok){ch5Done=true;ch5Answer=val;fb.className='feedback good';const p=model(VI,val);fb.innerHTML='<b>Correct. Chapter 5 complete.</b>The theoretical minimum is '+f(THETA_MIN,2)+'°, so 26.6° is the smallest safe setting on the slider. Below the minimum, R2 lands closer than 24.3 m. At '+f(val,1)+'°, Δx = '+f(p.dx,2)+' m and |v<sub>fy</sub>| = '+f(p.down,2)+' m/s, so both checks pass.';$('ch5Badge').classList.remove('hidden');complete(5);sfx('success');narrate('Correct. The theoretical minimum is '+f(THETA_MIN,2)+' degrees, so 26.6 degrees is the smallest safe setting on the slider. Chapter 5 complete. Answer the last question, then print your mission report.');return}
+ if(ok){ch5Done=true;ch5Answer=val;ch5Rec={attempts:ch5Attempts,hints:hint5,subst:ch5Subst};fb.className='feedback good';const p=model(VI,val);fb.innerHTML='<b>Correct. Chapter 5 complete.</b>The theoretical minimum is '+f(THETA_MIN,2)+'°, so 26.6° is the smallest safe setting on the slider. Below the minimum, R2 lands closer than 24.3 m. At '+f(val,1)+'°, Δx = '+f(p.dx,2)+' m and |v<sub>fy</sub>| = '+f(p.down,2)+' m/s, so both checks pass.';$('ch5Badge').classList.remove('hidden');complete(5);sfx('success');narrate('Correct. The theoretical minimum is '+f(THETA_MIN,2)+' degrees, so 26.6 degrees is the smallest safe setting on the slider. Chapter 5 complete. Answer the last question, then print your mission report.');return}
  let msg;if(!Number.isFinite(val))msg='Enter an angle in degrees.';else{const p=model(VI,val);
   if(val>34.5)msg='At '+f(val,1)+'°, |v<sub>fy</sub>| = '+f(p.down,1)+' m/s, which is over 11.0 m/s, so the sensor breaks. Look at lower angles.';
   else if(Math.abs(val-25.85)<=0.25)msg='At '+f(val,1)+'° R2 just reaches the pad edge (24.0 m), but the target needs 0.30 m of space: Δx ≥ 24.3 m.';
   else if(Math.abs(val-31.65)<=0.3)msg='That is the <strong>largest</strong> safe angle. Now find the smallest.';
   else if(val<THETA_MIN)msg='At '+raw+'°, R2 lands at Δx = '+f(p.dx,p.dx>24.29?4:p.dx>24.25?3:2)+' m. That is short of 24.3 m, so the landing is not safe. Try a slightly larger angle.';
   else msg='At '+raw+'° the landing is safe, but a smaller angle still works. Keep lowering the slider.'}
- fb.className='feedback bad';fb.innerHTML='<b>Not yet.</b>'+msg+(ch5Attempts>=2?' Need more support? Try “Show substitution.”':'');sfx('alert')}
+ fb.className='feedback bad';fb.innerHTML='<b>Not yet.</b>'+msg+(ch5Attempts>=2?' Need more support? “Show substitution” is now available.':'');if(ch5Attempts>=2)lockSubst('subst5Btn',false);sfx('alert')}
 
 /* ---------- mission report ---------- */
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function prepareReport(){const name=$('studentName').value.trim();$('printName').innerHTML='Name: <b>'+esc(name)+'</b>';
  const ex=$('explain').value.trim();$('printExplain').textContent=ex||'(No answer written.)';
+ const hk=Object.keys(helpRec);$('printHelp').innerHTML='<div><b>Help used in Chapter 3 ·</b> '+(hk.length?hk.map(a=>'<b>'+a+'°:</b> '+helpText(helpRec[a])).join(' &nbsp;|&nbsp; '):'no calculation completed')+'</div>';
  const w=$('ch5Explain').value.trim();
- if(ch5Done){const p=model(VI,ch5Answer);$('printCh5Body').innerHTML='<div class="ok-line">✓ Chapter 5 completed.</div><div class="reportgrid"><div>Smallest safe angle (your answer): <b>'+f(ch5Answer,1)+'°</b></div><div>At that angle: Δx = '+f(p.dx,2)+' m (target 24.3–26.2 m)</div><div>|v<sub>fy</sub>| = '+f(p.down,2)+' m/s (limit 11.0 m/s)</div></div><div class="q">Why does the sensor break at angles near 55°?</div><div class="printlines">'+esc(w||'(No answer written.)')+'</div>'}
+ if(ch5Done){const p=model(VI,ch5Answer);$('printCh5Body').innerHTML='<div class="ok-line">✓ Chapter 5 completed.</div><div class="helpline"><div><b>Help used:</b> '+helpText(ch5Rec)+'</div></div><div class="reportgrid"><div>Smallest safe angle (your answer): <b>'+f(ch5Answer,1)+'°</b></div><div>At that angle: Δx = '+f(p.dx,2)+' m (target 24.3–26.2 m)</div><div>|v<sub>fy</sub>| = '+f(p.down,2)+' m/s (limit 11.0 m/s)</div></div><div class="q">Why does the sensor break at angles near 55°?</div><div class="printlines">'+esc(w||'(No answer written.)')+'</div>'}
  else{$('printCh5Body').innerHTML='<div class="notdone">Chapter 5 was not completed.</div>'+(w?'<div class="q">Why does the sensor break at angles near 55°?</div><div class="printlines">'+esc(w)+'</div>':'')}}
 function printReport(){prepareReport();window.print()}
 window.addEventListener('beforeprint',prepareReport);
 
 /* ---------- restart + navigation ---------- */
-function restart(){cancelNarration();panel=0;launched=false;lastLaunch=null;tested={};ch5Done=false;ch5Answer=null;ch5Attempts=0;hint5=0;reached=1;for(const k in done)done[k]=false;
+function restart(){cancelNarration();panel=0;launched=false;lastLaunch=null;tested={};ch5Done=false;ch5Answer=null;ch5Attempts=0;hint5=0;reached=1;helpRec={};ch5Subst=false;ch5Rec=null;lockSubst('subst5Btn',true);for(const k in done)done[k]=false;
  ['checkpoint','outcome','engineering','minFeedback','hint5Box','subst5Box','ch5Badge'].forEach(id=>$(id).classList.add('hidden'));
  ['studentName','explain','ch5Explain','ansMin'].forEach(id=>$(id).value='');$('ansMin').classList.remove('wrong','right');$('hint5Btn').disabled=false;$('hint5Btn').textContent='Hint 1 of 3';
  $('angleSlider').value=45;newAngle(30);for(const a of[30,45,60])$('tested'+a).textContent='';showPanel();drawLab();window.scrollTo({top:0,behavior:'smooth'})}
@@ -669,7 +680,7 @@ $('nav4').onclick=()=>{if(reached<4||!launched)return;setChapter(4);jumpTo('outc
 $('nav5').onclick=()=>{if(reached<5)return;goChapter5()};
 $('ch5Art').src=ART['10_engineering'];
 window.addEventListener('resize',()=>{if(!$('engineering').classList.contains('hidden'))drawLab()});
-window.PhysicsFlowTest={model,fate,speakable,sentences,THETA_MIN,checkMath,launch,diagnose};
+window.PhysicsFlowTest={model,fate,speakable,sentences,THETA_MIN,checkMath,launch,diagnose,help:()=>({helpRec,ch5Rec,substUsed,ch5Subst})};
 showPanel();drawLab();volumeUpdate();
 </script>
 </body>
